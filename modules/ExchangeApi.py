@@ -40,7 +40,8 @@ class ExchangeApi(object):
     def limit_request_rate(self):
         now = time.time() * 1000  # milliseconds
         # Start throttling only when the queue is full
-        if len(self.req_time_log) == self.req_per_period:
+        #if len(self.req_time_log) == self.req_per_period:
+        if len(self.req_time_log) > 0:
             time_since_oldest_req = now - self.req_time_log[0]
             if time_since_oldest_req < self.req_period:
                 sleep = (self.req_period - time_since_oldest_req) / 1000

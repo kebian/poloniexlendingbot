@@ -6,12 +6,16 @@ import json
 import requests
 import time
 import threading
+import datetime
 
 from modules.ExchangeApi import ExchangeApi
 from modules.ExchangeApi import ApiError
 from modules.Bitfinex2Poloniex import Bitfinex2Poloniex
 from modules.RingBuffer import RingBuffer
 
+"""
+Bitfinex rate limit at 90 requests / minute
+"""
 
 class Bitfinex(ExchangeApi):
     def __init__(self, cfg, log):
@@ -30,11 +34,14 @@ class Bitfinex(ExchangeApi):
         self.symbols = []
         self.ticker = {}
         self.tickerTime = 0
-	self.baseCurrencies = ['USD', 'BTC', 'ETH']
+        self.baseCurrencies = ['USD', 'BTC', 'ETH']
         self.all_currencies = self.cfg.get_all_currencies()
         self.usedCurrencies = []
         self.timeout = int(self.cfg.get("BOT", "timeout", 30, 1, 180))
         self.api_debug_log = self.cfg.getboolean("BOT", "api_debug_log")
+        self.last_get_time = 0
+        self.last_get_request = ''
+        self.last_get_cache = ''
         # Initialize usedCurrencies
         _ = self.return_available_account_balances("lending")
 
@@ -76,6 +83,7 @@ class Bitfinex(ExchangeApi):
 
             r = {}
             url = '{}{}'.format(self.url, request)
+            print str(datetime.datetime.now()) + ' ' + url
             if method == 'get':
                 r = requests.get(url, timeout=self.timeout, headers={'Connection': 'close'})
             else:
@@ -111,11 +119,22 @@ class Bitfinex(ExchangeApi):
 
     @ExchangeApi.synchronized
     def _get(self, command):
+        
+        request = '/{}/{}'.format(self.apiVersion, command)
+
+        now = time.time()
+        if now - self.last_get_time < 2 and self.last_get_request == request:
+            return self.last_get_cache
+
         # keep the request per minute limit
         self.limit_request_rate()
 
-        request = '/{}/{}'.format(self.apiVersion, command)
-        return self._request('get', request)
+        now = time.time() # Re-get time as we could have slept
+        self.last_get_cache = self._request('get', request)
+        self.last_get_request = request
+        self.last_get_time = now
+
+        return self.last_get_cache
 
     def _get_symbols(self):
         """
@@ -337,6 +356,7 @@ class Bitfinex(ExchangeApi):
                 "wallet": "deposit"
             }
             bfx_resp = self._post('history', payload)
+            time.sleep(8)
             for entry in bfx_resp:
                 if 'Margin Funding Payment' in entry['description']:
                     amount = float(entry['amount'])

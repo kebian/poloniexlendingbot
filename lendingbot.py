@@ -121,7 +121,8 @@ try:
             elif isinstance(ex, BadStatusLine):
                 print "Caught BadStatusLine exception from Poloniex, ignoring."
             elif 'Error 429' in ex.message:
-                additional_sleep = max(130.0-Lending.get_sleep_time(), 0)
+                #additional_sleep = max(130.0-Lending.get_sleep_time(), 0)
+                additional_sleep = max(60.0-Lending.get_sleep_time(), 0)
                 sum_sleep = additional_sleep + Lending.get_sleep_time()
                 log.log_error('IP has been banned due to many requests. Sleeping for {} seconds'.format(sum_sleep))
                 if Config.has_option('MarketAnalysis', 'analyseCurrencies'):

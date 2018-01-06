@@ -244,7 +244,18 @@ def lend_all():
     try:
         for cur in lending_balances:
             if cur in all_currencies:
-                usable_currencies += lend_cur(cur, total_lent, lending_balances, ticker)
+                try:
+                    usable_currencies += lend_cur(cur, total_lent, lending_balances, ticker)
+                except Exception as ex:
+                    if 'Error 429' in ex.message: 
+                        print "Rate limit while iterating currencies for lending.  Sleeping..."
+                        time.sleep(get_sleep_time())
+                        print "Trying again..."
+                        usable_currencies += lend_cur(cur, total_lent, lending_balances, ticker)
+                        print "Continuing..."
+                    else:
+                        raise # Re-raise exception because it wasn't a rate limit
+
     except StopIteration:  # Restart lending if we stop to raise the request limit.
         lend_all()
     set_sleep_time(usable_currencies)
